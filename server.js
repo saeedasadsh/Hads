@@ -174,6 +174,185 @@ io.on('connection', function (socket) {
     console.log('client coneccted, id: ', thisClientId);
     socket.emit('connectToServer', { id: thisClientId });
 
+    socket.on("tellType", function (data) {
+        var playerCount = data.playerCount;
+        var player = data.id;
+        var sock = socket;
+        var userData = { type: data.type, id: data.id, myName: data.myName, playerCount: data.playerCount, avatar: data.avatar, leagueId: data.leagueId };
+
+        for (i = 0; i < players.length; i++) {
+            if (players[i] == thisClientId) {
+                players.splice(i, 1);
+                socks.splice(i, 1);
+            }
+        }
+
+        console.log("connect To Server by id:" + player + " --- playerCount: " + data.playerCount);
+
+        if (player != null && userData.type == "or") {
+
+            playersArr[(playerCount - 1)].push(player);
+            socksArr[(playerCount - 1)].push(sock);
+            playersNameArr[(playerCount - 1)].push(userData.myName);
+            playersAvatarArr[(playerCount - 1)].push(userData.avatar);
+
+            var counts = [];
+            counts.push(playersArr[0].length);
+            for (i = 1; i < playersArr.length; i++) {
+                counts.push(counts[i - 1] + playersArr[i].length);
+            }
+
+            var counter = counts.length - 1;
+            var max = maxPlayer;
+
+            while (counter >= 0) {
+                var count = counts[counter];
+                if (count >= max) {
+                    var playerCounter = 0;
+                    var lastIndex = max - 1;
+                    while (playerCounter <= max - 1) {
+
+                        if (playersArr[lastIndex].length > 0) {
+                            var pl = playersArr[lastIndex].pop();
+                            roomPlayers.push(pl);
+
+                            var nm = playersNameArr[lastIndex].pop();
+                            roomPlayersName.push(nm);
+
+                            var av = playersAvatarArr[lastIndex].pop();
+                            roomPlayerAvatar.push(av);
+
+                            var sc = socksArr[lastIndex].pop();
+                            roomSocks.push(sc);
+                            playerCounter++;
+                        }
+                        else {
+                            lastIndex--;
+                        }
+                    }
+
+                    var dt = [];
+                    thisRoomId = shortid.generate();
+                    for (k = 0; k < roomPlayers.length; k++) {
+                        dt.push({ roomPlayer: roomPlayers[k], isActive: true, playerCards: [], point: 0, turn: k, roomPlayersName: roomPlayersName[k], roomPlayerAvatar: roomPlayerAvatar[k] });
+                    }
+
+                    var nobat = Math.floor(Math.random() * (roomPlayers.length));
+                    //
+                    var data = { roomId: thisRoomId, players: roomPlayers, roomSocks: roomSocks, roomPlayersName: roomPlayersName, nobat: nobat, gameTurn: 0, playersCards: [[]], playerCount: roomSocks.length, roomPlayerAvatar: roomPlayerAvatar };
+                    gameRomms.push(data);
+                    console.log("nobat", nobat);
+                    roomSocks.forEach(function (item, index, arr) {
+                        item.emit('GameBegin', { roomId: thisRoomId, gameTurn: 0, nobat: nobat, gameRommsIndex: gameRomms.length - 1, players: { dt }, PlayersCount: dt.length });
+
+                    });
+                    counter = -1;
+                }
+                else {
+                    max--;
+                    counter--;
+                }
+            }
+
+            var counts = [];
+            for (i = 0; i < playersArr.length; i++) {
+                counts.push(playersArr[i].length);
+            }
+
+            var data = { counts: counts };
+
+
+            for (i = 0; i < socksArr.length; i++) {
+                var sc = socksArr[i];
+                sc.forEach(function (item, index, arr) {
+
+                    item.emit("roomPlayersCount", data);
+                });
+            }
+
+            for (i = 0; i < socks.length; i++) {
+                socks[i].emit("roomPlayersCount", data);
+            }
+        }
+        else if (userData.type == "fr") {
+            fr_players.push(player);
+            fr_playersName.push(userData.myName);
+            fr_socks.push(sock);
+            socket.emit('fr_connectToServer', { id: player });
+        }
+        else if (userData.type == "league") {
+            console.log("join to league");
+            for (i = 0; i < leagues.length; i++) {
+                if (userData.leagueId == leagues[i]) {
+                    console.log(userData.leagueId == leagues[i]);
+                    LeaguePlayerCount[i]++;
+                    leaguesPlayersArr[i].push(player);
+                    leagueSocksArr[i].push(sock);
+                    leaguesPlayersNameArr[i].push(userData.myName);
+                    leaguesPlayersAvatarArr[i].push(userData.avatar);
+                    var max = maxPlayer;
+
+                    var count = leaguesPlayersArr[i].length;
+
+                    if (count >= max) {
+                        var playerCounter = 0;
+                        var lastIndex = max - 1;
+                        while (playerCounter <= max - 1) {
+
+                            var pl = leaguesPlayersArr[i].pop();
+                            roomPlayers.push(pl);
+
+                            var nm = leaguesPlayersNameArr[i].pop();
+                            roomPlayersName.push(nm);
+
+                            var av = leaguesPlayersAvatarArr[i].pop();
+                            roomPlayerAvatar.push(av);
+
+                            var sc = leagueSocksArr[i].pop();
+                            roomSocks.push(sc);
+                            playerCounter++;
+                        }
+
+                        var dt = [];
+                        thisRoomId = shortid.generate();
+                        for (k = 0; k < roomPlayers.length; k++) {
+                            dt.push({ roomPlayer: roomPlayers[k], isActive: true, playerCards: [], point: 0, turn: k, roomPlayersName: roomPlayersName[k], roomPlayerAvatar: roomPlayerAvatar[k] });
+                        }
+
+                        var nobat = Math.floor(Math.random() * (roomPlayers.length));
+                        //
+                        var data = { roomId: thisRoomId, players: roomPlayers, roomSocks: roomSocks, roomPlayersName: roomPlayersName, nobat: nobat, gameTurn: 0, playersCards: [[]], playerCount: roomSocks.length, roomPlayerAvatar: roomPlayerAvatar };
+                        gameRomms.push(data);
+                        console.log("nobat", nobat);
+                        roomSocks.forEach(function (item, index, arr) {
+                            item.emit('GameBegin', { roomId: thisRoomId, gameTurn: 0, nobat: nobat, gameRommsIndex: gameRomms.length - 1, players: { dt }, PlayersCount: dt.length });
+
+                        });
+                        counter = -1;
+                    }
+
+
+                    for (j = 0; j < leagueSocksArr[i].length; j++) {
+                        if (!leagueSocksArr[i][j].connected) {
+                            leaguesPlayersArr[i].splice(j, 1);
+                            leagueSocksArr[i].splice(j, 1);
+                            leaguesPlayersNameArr[i].splice(j, 1);
+                            leaguesPlayersAvatarArr[i].splice(j, 1);
+                        }
+                    }
+
+                    var count = leaguesPlayersArr[i].length;
+                    var datal = { counts: count, playerName: leaguesPlayersNameArr[i] };
+                    //console.log(datal);
+                    for (k = 0; k < leagueSocksArr[i].length; k++) {
+                        leagueSocksArr[i][k].emit("OnGetLeaguePlayerCount", datal);
+                    }
+                }
+            }
+
+        }
+    });
+
     socket.on('GetLeaguePlayerCount', function (data) {
         //console.log('GetLeaguePlayerCount', data);
         var leagueId = data.leagueId;
